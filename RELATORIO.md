@@ -2,6 +2,7 @@
 
 **Disciplina:** Sistemas Operacionais  
 **Linguagem:** C (padrão C11) com POSIX Threads (pthreads)  
+_Código GitHub:_ https://github.com/bernardofsrodrigues/banker
 
 ---
 
@@ -21,7 +22,7 @@ O **Algoritmo do Banqueiro**, proposto por Edsger W. Dijkstra em 1965, é o algo
 
 Formalmente, o algoritmo distingue dois conceitos centrais:
 
-- **Estado seguro:** existe ao menos uma sequência de execução (`<P₁, P₂, ..., Pₙ>`) tal que, para todo processo `Pᵢ`, os recursos que ele ainda pode solicitar podem ser satisfeitos com os recursos disponíveis mais os recursos liberados por todos os `Pⱼ` com `j < i`. Um estado seguro garante que o deadlock não ocorrerá.  
+- **Estado seguro:** existe ao menos uma sequência de execução (`<P₁, P₂, ..., Pₙ>`) tal que, para todo processo `Pᵢ`, os recursos que ele ainda pode solicitar podem ser satisfeitos com os recursos disponíveis mais os recursos liberados por todos os `Pⱼ` com `j < i`. Um estado seguro garante que o deadlock não ocorrerá.
 - **Estado inseguro:** não existe tal sequência. O sistema pode — mas não necessariamente irá — entrar em deadlock.
 
 O algoritmo recusa qualquer solicitação que levaria o sistema a um estado inseguro, mesmo que os recursos solicitados estejam fisicamente disponíveis no momento.
@@ -44,12 +45,12 @@ O programa simula um sistema com cinco clientes concorrentes que solicitam e lib
 
 O banqueiro mantém quatro estruturas de dados globais, todas indexadas por cliente (`i`) e tipo de recurso (`j`):
 
-| Estrutura    | Tipo       | Descrição                                                    |
-|--------------|------------|--------------------------------------------------------------|
-| `available`  | vetor      | Quantidade disponível de cada tipo de recurso no momento     |
-| `maximum`    | matriz     | Demanda máxima de cada cliente por tipo de recurso           |
-| `allocation` | matriz     | Quantidade atualmente alocada a cada cliente                 |
-| `need`       | matriz     | Quantidade ainda necessária: `need[i][j] = maximum[i][j] − allocation[i][j]` |
+| Estrutura    | Tipo   | Descrição                                                                    |
+| ------------ | ------ | ---------------------------------------------------------------------------- |
+| `available`  | vetor  | Quantidade disponível de cada tipo de recurso no momento                     |
+| `maximum`    | matriz | Demanda máxima de cada cliente por tipo de recurso                           |
+| `allocation` | matriz | Quantidade atualmente alocada a cada cliente                                 |
+| `need`       | matriz | Quantidade ainda necessária: `need[i][j] = maximum[i][j] − allocation[i][j]` |
 
 A invariante `need[i][j] = maximum[i][j] − allocation[i][j]` é mantida em todas as operações e serve como verificação implícita da consistência do estado.
 
@@ -59,7 +60,7 @@ Os valores de `available` são inicializados com os argumentos da linha de coman
 
 Todo o estado do sistema é compartilhado entre as threads dos clientes. Para evitar condições de corrida, um único mutex POSIX (`bank_lock`) protege exclusivamente todos os acessos de leitura e escrita às estruturas `available`, `maximum`, `allocation` e `need`.
 
-A decisão de usar um único mutex (ao invés de múltiplos locks de granularidade fina) é intencional: o algoritmo de segurança precisa inspecionar *todas* as estruturas de forma atomicamente consistente. Locks de granularidade fina exigiriam protocolo de ordenação para evitar deadlock entre os próprios locks, adicionando complexidade sem benefício de desempenho significativo neste cenário de número fixo de clientes.
+A decisão de usar um único mutex (ao invés de múltiplos locks de granularidade fina) é intencional: o algoritmo de segurança precisa inspecionar _todas_ as estruturas de forma atomicamente consistente. Locks de granularidade fina exigiriam protocolo de ordenação para evitar deadlock entre os próprios locks, adicionando complexidade sem benefício de desempenho significativo neste cenário de número fixo de clientes.
 
 O mutex é adquirido e liberado internamente pelas funções `request_resources` e `release_resources`. As threads de clientes **nunca** adquirem o lock diretamente antes de chamar essas funções, eliminando qualquer risco de deadlock causado por dupla aquisição do mutex (que, sendo do tipo padrão não-reentrante `PTHREAD_MUTEX_INITIALIZER`, resultaria em comportamento indefinido).
 
@@ -104,6 +105,7 @@ Todo o processo ocorre dentro da seção crítica, garantindo atomicidade da ope
 ### 2.5 Função `release_resources`
 
 Após validar que o cliente não está devolvendo mais recursos do que possui alocados, a função:
+
 1. Incrementa `available[j]` com os recursos liberados.
 2. Decrementa `allocation[i][j]`.
 3. Incrementa `need[i][j]` (o cliente pode solicitar novamente no futuro).
@@ -243,6 +245,6 @@ O desenvolvimento deste trabalho consolidou a compreensão prática de três pil
 
 ## Referências
 
-- SILBERSCHATZ, A.; GALVIN, P. B.; GAGNE, G. **Fundamentos de Sistemas Operacionais**. 9. ed. Rio de Janeiro: LTC, 2015. Cap. 8 (Deadlocks).  
-- DIJKSTRA, E. W. **Co-operating Sequential Processes**. In: GENUYS, F. (Ed.). *Programming Languages*. Academic Press, 1968.  
+- SILBERSCHATZ, A.; GALVIN, P. B.; GAGNE, G. **Fundamentos de Sistemas Operacionais**. 9. ed. Rio de Janeiro: LTC, 2015. Cap. 8 (Deadlocks).
+- DIJKSTRA, E. W. **Co-operating Sequential Processes**. In: GENUYS, F. (Ed.). _Programming Languages_. Academic Press, 1968.
 - IEEE. **POSIX.1-2017 — IEEE Standard for Information Technology: Portable Operating System Interface (POSIX)**. IEEE, 2018.
